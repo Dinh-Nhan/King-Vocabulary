@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "186353194891",
+    "project_id": "king-vocabulary",
+    "storage_bucket": "king-vocabulary.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:186353194891:android:be78b1f4d13ce87361818e",
+        "android_client_info": {
+          "package_name": "com.example.king_vocabulary"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqn4U_gKfw4MUz9Pspik2QHt830Lzi1J0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
