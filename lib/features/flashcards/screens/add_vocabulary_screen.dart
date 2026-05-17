@@ -4,14 +4,21 @@ import 'package:king_vocabulary/core/themes/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/manual_input_result.dart';
 
-class CreateDeckScreen extends StatefulWidget {
-  const CreateDeckScreen({super.key});
+class AddVocabularyScreen extends StatefulWidget {
+  final String deckId;
+  final String deckTitle;
+
+  const AddVocabularyScreen({
+    super.key,
+    required this.deckId,
+    required this.deckTitle,
+  });
 
   @override
-  State<CreateDeckScreen> createState() => _CreateDeckScreenState();
+  State<AddVocabularyScreen> createState() => _AddVocabularyScreenState();
 }
 
-class _CreateDeckScreenState extends State<CreateDeckScreen>
+class _AddVocabularyScreenState extends State<AddVocabularyScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final _deckNameController = TextEditingController();
@@ -38,13 +45,6 @@ class _CreateDeckScreenState extends State<CreateDeckScreen>
 
   // ── Lưu bộ từ ───────────────────────────────────────────────────────────────
   Future<void> _onSave() async {
-    final deckName = _deckNameController.text.trim();
-
-    if (deckName.isEmpty) {
-      setState(() => _errorMessage = 'Vui lòng nhập tên bộ từ');
-      return;
-    }
-
     // Chỉ xử lý tab Manual Input (tab 0)
     if (_tabController.index == 0) {
       final entries = _manualTabKey.currentState?.getEntries() ?? [];
@@ -60,8 +60,8 @@ class _CreateDeckScreenState extends State<CreateDeckScreen>
       });
 
       try {
-        final result = await _manualInputService.createDeckWithWords(
-          title: deckName,
+        final result = await _manualInputService.addWordsToDeck(
+          deckId: widget.deckId,
           entries: entries,
         );
 
@@ -199,7 +199,7 @@ class _CreateDeckScreenState extends State<CreateDeckScreen>
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Tạo bộ từ mới',
+              'Thêm từ mới',
               style: GoogleFonts.nunito(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -249,25 +249,12 @@ class _CreateDeckScreenState extends State<CreateDeckScreen>
   Widget _buildDeckNameField() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: TextFormField(
-        controller: _deckNameController,
-        style: GoogleFonts.nunito(
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          color: LexiColors.slate800,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Tên bộ từ, ví dụ: TOEIC 600+',
-          hintStyle: GoogleFonts.nunito(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: LexiColors.slate400,
-          ),
-          prefixIcon: const Icon(
-            Icons.menu_book_rounded,
-            size: 18,
-            color: LexiColors.sky400,
-          ),
+      child: Text(
+        'Bộ từ: ${widget.deckTitle}',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: LexiColors.slate700,
         ),
       ),
     );
@@ -489,7 +476,7 @@ class _ManualInputTabState extends State<_ManualInputTab> {
       child: OutlinedButton.icon(
         onPressed: _addEntry,
         icon: const Icon(Icons.add_rounded, size: 18),
-        label: const Text('Thêm từ mới'),
+        label: const Text('Thêm từ'),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),

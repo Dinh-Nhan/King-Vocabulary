@@ -13,6 +13,7 @@ class Flashcard {
   final double easeFactor; // SM-2: hệ số dễ nhớ (mặc định 2.5)
   final int reviewIntervalDays; // SM-2: khoảng cách ôn tập (ngày)
   final int repetitionCount; // SM-2: số lần ôn liên tiếp thành công
+  final int learnedCount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -29,6 +30,7 @@ class Flashcard {
     this.easeFactor = 2.5,
     this.reviewIntervalDays = 1,
     this.repetitionCount = 0,
+    this.learnedCount = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -51,6 +53,7 @@ class Flashcard {
       easeFactor: (map['easeFactor'] ?? 2.5).toDouble(),
       reviewIntervalDays: map['reviewIntervalDays'] ?? 1,
       repetitionCount: map['repetitionCount'] ?? 0,
+      learnedCount: map['learnedCount'] ?? 0,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       updatedAt: (map['updatedAt'] as Timestamp).toDate(),
     );
@@ -73,6 +76,7 @@ class Flashcard {
       'easeFactor': easeFactor,
       'reviewIntervalDays': reviewIntervalDays,
       'repetitionCount': repetitionCount,
+      'learnedCount': learnedCount,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -88,6 +92,7 @@ class Flashcard {
     double? easeFactor,
     int? reviewIntervalDays,
     int? repetitionCount,
+    int? learnedCount,
     DateTime? updatedAt,
   }) {
     return Flashcard(
@@ -103,6 +108,7 @@ class Flashcard {
       easeFactor: easeFactor ?? this.easeFactor,
       reviewIntervalDays: reviewIntervalDays ?? this.reviewIntervalDays,
       repetitionCount: repetitionCount ?? this.repetitionCount,
+      learnedCount: learnedCount ?? this.learnedCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

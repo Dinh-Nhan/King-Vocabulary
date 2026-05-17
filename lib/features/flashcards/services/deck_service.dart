@@ -42,7 +42,7 @@ class DeckService {
     return deck;
   }
 
-  /// Lấy tất cả bộ từ của user
+  /// Lấy tất cả bộ từ của user (với realtime updates)
   Stream<List<FlashcardDeck>> watchDecks() {
     return _decksRef
         .orderBy('createdAt', descending: true)
@@ -52,6 +52,31 @@ class DeckService {
               .map((doc) => FlashcardDeck.fromMap(doc.data(), doc.id))
               .toList(),
         );
+  }
+
+  /// Lấy tất cả bộ từ với learnedCount được tính realtime
+  Stream<List<FlashcardDeck>> watchDecksWithLearnedCount() {
+    return _decksRef
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .asyncMap((snap) async {
+          final decks = <FlashcardDeck>[];
+
+          for (final doc in snap.docs) {
+            final deck = FlashcardDeck.fromMap(doc.data(), doc.id);
+
+            // Tính learnedCount realtime
+            final words = await _wordsRef(deck.deckId).get();
+            final learnedCount = words.docs
+                .where((wordDoc) => (wordDoc.data()['reviewCount'] ?? 0) > 0)
+                .length;
+
+            // Cập nhật deck với learnedCount mới
+            decks.add(deck.copyWith(learnedCount: learnedCount));
+          }
+
+          return decks;
+        });
   }
 
   /// Lấy 1 bộ từ theo id
@@ -188,10 +213,35 @@ class DeckService {
     String flashcardId, {
     String? frontContent,
     String? backContent,
+    double? easeFactor, // 👈 thêm
+    int? intervalDays, // 👈 thêm
+    int? repetitionCount, // 👈 thêm
+    DateTime? nextReviewAt, // 👈 thêm
   }) async {
+    final doc = await _wordsRef(deckId).doc(flashcardId).get();
+    final currentReviewCount = doc.data()?['reviewCount'] ?? 0;
+
+    final batch = _db.batch();
+
+    if (currentReviewCount == 0) {
+      batch.update(_decksRef.doc(deckId), {
+        'learnedCount': FieldValue.increment(1), // 👈
+      });
+    }
+    batch.update(_decksRef.doc(deckId), {
+      if (currentReviewCount == 0) 'learnedCount': FieldValue.increment(1),
+    });
+
     await _wordsRef(deckId).doc(flashcardId).update({
       if (frontContent != null) 'frontContent': frontContent.trim(),
       if (backContent != null) 'backContent': backContent.trim(),
+      if (easeFactor != null) 'easeFactor': easeFactor,
+      if (intervalDays != null) 'reviewIntervalDays': intervalDays,
+      if (repetitionCount != null) 'repetitionCount': repetitionCount,
+      if (nextReviewAt != null)
+        'nextReviewAt': Timestamp.fromDate(nextReviewAt),
+      'reviewCount': FieldValue.increment(1), // 👈 tăng mỗi lần ôn
+      'lastReviewedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -227,5 +277,53 @@ class DeckService {
       results.addAll(due);
     }
     return results;
+  }
+
+  // ── Learned Count Management ────────────────────────────────────────────────
+
+  /// Cập nhật learnedCount cho một deck (đếm số từ có reviewCount > 0)
+  Future<void> updateLearnedCount(String deckId) async {
+    final words = await _wordsRef(deckId).get();
+    final learnedCount = words.docs
+        .where((doc) => (doc.data()['reviewCount'] ?? 0) > 0)
+        .length;
+
+    await _decksRef.doc(deckId).update({
+      'learnedCount': learnedCount,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Cập nhật learnedCount cho tất cả decks của user
+  Future<void> updateAllLearnedCounts() async {
+    final decks = await _decksRef.get();
+    final batch = _db.batch();
+
+    for (final deckDoc in decks.docs) {
+      final words = await _wordsRef(deckDoc.id).get();
+      final learnedCount = words.docs
+          .where((doc) => (doc.data()['reviewCount'] ?? 0) > 0)
+          .length;
+
+      batch.update(deckDoc.reference, {
+        'learnedCount': learnedCount,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+  }
+
+  /// Tăng reviewCount của một flashcard (gọi sau khi user ôn từ)
+  Future<void> incrementReviewCount(String deckId, String flashcardId) async {
+    // Tăng reviewCount của flashcard
+    await _wordsRef(deckId).doc(flashcardId).update({
+      'reviewCount': FieldValue.increment(1),
+      'lastReviewedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Cập nhật learnedCount của deck ngay lập tức
+    await updateLearnedCount(deckId);
   }
 }

@@ -3,21 +3,94 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:king_vocabulary/core/themes/app_theme.dart';
 import 'package:king_vocabulary/features/auth/services/auth_service.dart';
 import 'package:king_vocabulary/features/flashcards/screens/create_deck_screen.dart';
+import 'package:king_vocabulary/features/flashcards/screens/list_vocabulary_screen.dart';
 import 'package:king_vocabulary/features/flashcards/services/deck_service.dart';
 import 'package:king_vocabulary/features/flashcards/models/flash_card_deck.dart';
+import 'package:king_vocabulary/app.dart'; // Import để dùng routeObserver
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver, RouteAware {
   final user = AuthService().currentUser;
   final _deckService = DeckService();
+  bool _isUpdatingCounts = false;
 
-  HomeScreen({super.key});
+  @override
+  void initState() {
+    super.initState();
+    // Lắng nghe lifecycle changes
+    WidgetsBinding.instance.addObserver(this);
+    // Cập nhật learnedCount khi vào màn hình (chỉ chạy 1 lần)
+    _updateLearnedCountsOnce();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Subscribe to route changes
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Khi app quay về foreground, refresh data
+    if (state == AppLifecycleState.resumed) {
+      _updateLearnedCountsOnce();
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Được gọi khi pop về màn hình này từ màn hình khác
+    debugPrint('🔄 HomeScreen: didPopNext - Refreshing data...');
+    _updateLearnedCountsOnce();
+  }
+
+  Future<void> _updateLearnedCountsOnce() async {
+    if (_isUpdatingCounts) return;
+
+    setState(() => _isUpdatingCounts = true);
+
+    try {
+      await _deckService.updateAllLearnedCounts();
+    } catch (e) {
+      // Ignore errors, không ảnh hưởng đến UI
+      debugPrint('Error updating learned counts: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingCounts = false);
+      }
+    }
+  }
 
   // ── Callbacks (wire up khi có service) ──────────────────────────────────────
-  void _onCreateDeck(BuildContext context) {
-    Navigator.push(
+  Future<void> _onCreateDeck(BuildContext context) async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CreateDeckScreen()),
     );
+
+    // Nếu có kết quả trả về (deck mới được tạo), refresh
+    if (result != null && mounted) {
+      // StreamBuilder sẽ tự động cập nhật
+      setState(() {}); // Trigger rebuild để đảm bảo
+    }
   }
 
   void _onStudyDeck(BuildContext context) {
@@ -28,8 +101,24 @@ class HomeScreen extends StatelessWidget {
     // TODO: mở màn hình ôn lại từ sắp quên (spaced repetition)
   }
 
-  void _onDeckTap(BuildContext context, String deckId) {
+  Future<void> _onDeckTap(
+    BuildContext context,
+    String deckId,
+    String deckTitle,
+  ) async {
     // TODO: mở chi tiết bộ từ
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ListVocabularyScreen(deckId: deckId, deckTitle: deckTitle),
+      ),
+    );
+
+    // Khi quay về, refresh để cập nhật learnedCount
+    if (mounted) {
+      setState(() {}); // Trigger rebuild
+    }
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -316,7 +405,7 @@ class HomeScreen extends StatelessWidget {
   // ── Deck list ───────────────────────────────────────────────────────────────
   Widget _buildDeckList(BuildContext context) {
     return StreamBuilder<List<FlashcardDeck>>(
-      stream: _deckService.watchDecks(),
+      stream: _deckService.watchDecks(), // ← Dùng stream thông thường
       builder: (context, snapshot) {
         // Loading
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -424,7 +513,11 @@ class HomeScreen extends StatelessWidget {
               .map(
                 (deck) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildDismissibleDeckCard(context, deck),
+                  child: _buildDismissibleDeckCard(
+                    context,
+                    deck,
+                    deckTitle: deck.title,
+                  ),
                 ),
               )
               .toList(),
@@ -433,7 +526,11 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDismissibleDeckCard(BuildContext context, FlashcardDeck deck) {
+  Widget _buildDismissibleDeckCard(
+    BuildContext context,
+    FlashcardDeck deck, {
+    required String deckTitle,
+  }) {
     return Dismissible(
       key: Key(deck.deckId),
       direction: DismissDirection.endToStart,
@@ -454,7 +551,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             content: Text(
-              'Bạn có chắc muốn xóa "${deck.title}"?\n\nTất cả ${deck.totalFlashcardCount} từ bên trong sẽ bị xóa vĩnh viễn.',
+              'Bạn có chắc muốn xóa "${deckTitle}"?\n\nTất cả ${deck.totalFlashcardCount} từ bên trong sẽ bị xóa vĩnh viễn.',
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -497,7 +594,7 @@ class HomeScreen extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '✅ Đã xóa "${deck.title}"',
+                  '✅ Đã xóa "${deckTitle}"',
                   style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
                 ),
                 backgroundColor: LexiColors.mint600,
@@ -532,20 +629,26 @@ class HomeScreen extends StatelessWidget {
           size: 28,
         ),
       ),
-      child: _buildDeckCard(context, deck),
+      child: InkWell(
+        onTap: () => _onDeckTap(context, deck.deckId, deck.title),
+        borderRadius: BorderRadius.circular(16),
+        child: _buildDeckCard(context, deck),
+      ),
     );
   }
 
   Widget _buildDeckCard(BuildContext context, FlashcardDeck deck) {
     // Tính progress (tạm thời dùng 0 vì chưa có thông tin learned)
-    final progress = deck.totalFlashcardCount > 0 ? 0.0 : 0.0;
+    final progress = deck.totalFlashcardCount > 0
+        ? deck.learnedCount / deck.totalFlashcardCount
+        : 0.0;
 
     // Chọn màu dựa trên index (đơn giản)
     final colors = [LexiColors.sky400, LexiColors.mint400, LexiColors.lav400];
     final color = colors[deck.deckId.hashCode % colors.length];
 
     return GestureDetector(
-      onTap: () => _onDeckTap(context, deck.deckId),
+      onTap: () => _onDeckTap(context, deck.deckId, deck.title),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -579,7 +682,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${deck.totalFlashcardCount} từ',
+                    '${deck.learnedCount}/${deck.totalFlashcardCount} từ',
                     style: GoogleFonts.nunito(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,

@@ -6,6 +6,7 @@ class FlashcardDeck {
   final String title;
   final String description;
   final int totalFlashcardCount;
+  final int learnedCount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -15,6 +16,7 @@ class FlashcardDeck {
     required this.title,
     this.description = '',
     this.totalFlashcardCount = 0,
+    this.learnedCount = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -26,6 +28,7 @@ class FlashcardDeck {
       title: map['title'] ?? '',
       description: map['description'] ?? '',
       totalFlashcardCount: map['totalFlashcardCount'] ?? 0,
+      learnedCount: map['learnedCount'] ?? 0,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       updatedAt: (map['updatedAt'] as Timestamp).toDate(),
     );
@@ -37,6 +40,7 @@ class FlashcardDeck {
       'title': title,
       'description': description,
       'totalFlashcardCount': totalFlashcardCount,
+      'learnedCount': learnedCount,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -46,6 +50,7 @@ class FlashcardDeck {
     String? title,
     String? description,
     int? totalFlashcardCount,
+    int? learnedCount,
     DateTime? updatedAt,
   }) {
     return FlashcardDeck(
@@ -54,6 +59,7 @@ class FlashcardDeck {
       title: title ?? this.title,
       description: description ?? this.description,
       totalFlashcardCount: totalFlashcardCount ?? this.totalFlashcardCount,
+      learnedCount: learnedCount ?? this.learnedCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
