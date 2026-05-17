@@ -235,9 +235,9 @@ class DeckService {
     await _wordsRef(deckId).doc(flashcardId).update({
       if (frontContent != null) 'frontContent': frontContent.trim(),
       if (backContent != null) 'backContent': backContent.trim(),
-      if (easeFactor != null) 'easeFactor': easeFactor,
-      if (intervalDays != null) 'reviewIntervalDays': intervalDays,
-      if (repetitionCount != null) 'repetitionCount': repetitionCount,
+      'easeFactor': ?easeFactor,
+      'reviewIntervalDays': ?intervalDays,
+      'repetitionCount': ?repetitionCount,
       if (nextReviewAt != null)
         'nextReviewAt': Timestamp.fromDate(nextReviewAt),
       'reviewCount': FieldValue.increment(1), // 👈 tăng mỗi lần ôn

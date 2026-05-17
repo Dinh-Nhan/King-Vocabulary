@@ -551,7 +551,7 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             content: Text(
-              'Bạn có chắc muốn xóa "${deckTitle}"?\n\nTất cả ${deck.totalFlashcardCount} từ bên trong sẽ bị xóa vĩnh viễn.',
+              'Bạn có chắc muốn xóa "$deckTitle"?\n\nTất cả ${deck.totalFlashcardCount} từ bên trong sẽ bị xóa vĩnh viễn.',
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -594,7 +594,7 @@ class _HomeScreenState extends State<HomeScreen>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '✅ Đã xóa "${deckTitle}"',
+                  '✅ Đã xóa "$deckTitle"',
                   style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
                 ),
                 backgroundColor: LexiColors.mint600,

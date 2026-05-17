@@ -80,9 +80,9 @@ class _StudyScreenState extends State<StudyScreen>
 
     // Cập nhật thống kê
     setState(() {
-      if (q == 5)
+      if (q == 5) {
         _easyCount++;
-      else if (q == 4)
+      } else if (q == 4)
         _okCount++;
       else if (q == 3)
         _hardCount++;
