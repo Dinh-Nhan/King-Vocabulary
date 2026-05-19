@@ -86,12 +86,6 @@ erDiagram
 ```
 ## Chọn stack
 - Frontend: Flutter
-- Backend: Dart
 - Database: Firebase
-## Thiết kế API
-## Xây backend
-## Xây frontend
-## Kết nối frontend + backend
-## Authentication
 ## Testing
 ## Deploy

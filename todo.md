@@ -1,0 +1,4 @@
+- [ ] Thực hiện nốt 2 chức năng học từ vựng là nối từ và điền từ
+- [ ] Tiến hành thực hiện chức năng import từ file docs
+- [ ] Lấy tất cả từ vựng cần ôn của tất cả bộ từ và thực hiện chức năng ôn từ lật thẻ, nối từ và điền từ
+- [ ] Thông báo từ đến hạn cần ôn
