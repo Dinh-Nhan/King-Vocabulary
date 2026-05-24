@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:king_vocabulary/core/themes/app_theme.dart';
 import 'package:king_vocabulary/features/flashcards/models/flash_card.dart';
 import 'package:king_vocabulary/features/flashcards/screens/add_vocabulary_screen.dart';
-import 'package:king_vocabulary/features/flashcards/screens/study_screen.dart';
 import 'package:king_vocabulary/features/flashcards/services/deck_service.dart';
+import 'package:king_vocabulary/features/learning/screens/learning_mode_screen.dart';
 
 class ListVocabularyScreen extends StatefulWidget {
   final String deckId;
@@ -61,12 +61,16 @@ class _ListVocabularyScreenState extends State<ListVocabularyScreen> {
     _deckService.deleteFlashcard(widget.deckId, card.flashcardId);
   }
 
-  void _onStudy() {
+  void _onStudy(int totalWorlds) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            StudyScreen(deckId: widget.deckId, deckTitle: widget.deckTitle),
+        builder: (_) => LearningModeScreen(
+          deckId: widget.deckId,
+          deckTitle: widget.deckTitle,
+          totalWords: totalWorlds,
+        ),
+        // StudyScreen(deckId: widget.deckId, deckTitle: widget.deckTitle),
       ),
     );
   }
@@ -269,7 +273,7 @@ class _ListVocabularyScreenState extends State<ListVocabularyScreen> {
   // ── Study Button ─────────────────────────────────────────────────────────────
   Widget _buildStudyButton(int totalCount) {
     return GestureDetector(
-      onTap: _onStudy,
+      onTap: () => _onStudy(totalCount),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

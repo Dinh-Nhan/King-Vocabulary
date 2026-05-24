@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:king_vocabulary/core/themes/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../services/manual_input_result.dart';
+import '../services/import_service.dart';
 
 class AddVocabularyScreen extends StatefulWidget {
   final String deckId;
@@ -27,6 +28,9 @@ class _AddVocabularyScreenState extends State<AddVocabularyScreen>
   bool _isSaving = false;
   String? _errorMessage;
 
+  // Entries từ import tab, truyền xuống _ManualInputTab qua constructor
+  List<({String front, String back})>? _pendingImportEntries;
+
   // Key để truy cập state của tab Manual Input
   final _manualTabKey = GlobalKey<_ManualInputTabState>();
 
@@ -34,6 +38,7 @@ class _AddVocabularyScreenState extends State<AddVocabularyScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() => setState(() {}));
   }
 
   @override
@@ -81,9 +86,9 @@ class _AddVocabularyScreenState extends State<AddVocabularyScreen>
         // Quay về màn hình trước
         Navigator.pop(context, result.deck);
       } on FirebaseException catch (e) {
-        print('🔥 Firebase Error Code: ${e.code}');
-        print('🔥 Firebase Error Message: ${e.message}');
-        print('🔥 Firebase Error Plugin: ${e.plugin}');
+        debugPrint('🔥 Firebase Error Code: ${e.code}');
+        debugPrint('🔥 Firebase Error Message: ${e.message}');
+        debugPrint('🔥 Firebase Error Plugin: ${e.plugin}');
 
         String errorMsg = 'Lỗi Firebase: ${e.code}';
         if (e.code == 'permission-denied') {
@@ -98,15 +103,35 @@ class _AddVocabularyScreenState extends State<AddVocabularyScreen>
 
         setState(() => _errorMessage = errorMsg);
       } catch (e) {
-        print('❌ Unknown Error: $e');
+        debugPrint('❌ Unknown Error: $e');
         setState(() => _errorMessage = e.toString());
       } finally {
         if (mounted) setState(() => _isSaving = false);
       }
     } else {
-      // Tab Import - chưa implement
-      setState(() => _errorMessage = 'Chức năng import đang phát triển');
+      // Tab Import — không cần xử lý, import tab tự chuyển sang tab nhập tay
+      setState(
+        () => _errorMessage =
+            'Vui lòng dùng tab Import để tải file, sau đó kiểm tra và nhấn Lưu',
+      );
     }
+  }
+
+  /// Nhận entries từ _ImportTab → nạp vào _ManualInputTab → chuyển sang tab 0
+  void _onImported(List<({String front, String back})> entries) {
+    setState(() => _pendingImportEntries = entries);
+    _tabController.animateTo(0);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '✅ Đã tải ${entries.length} từ — kiểm tra và chỉnh sửa trước khi lưu',
+          style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: LexiColors.sky600,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -128,8 +153,11 @@ class _AddVocabularyScreenState extends State<AddVocabularyScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _ManualInputTab(key: _manualTabKey),
-                  _ImportTab(),
+                  _ManualInputTab(
+                    key: _manualTabKey,
+                    importedEntries: _pendingImportEntries,
+                  ),
+                  _ImportTab(onImported: _onImported),
                 ],
               ),
             ),
@@ -209,35 +237,45 @@ class _AddVocabularyScreenState extends State<AddVocabularyScreen>
           ),
           GestureDetector(
             onTap: _isSaving ? null : _onSave,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: _isSaving ? LexiColors.slate300 : LexiColors.sky400,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 40,
-                      height: 16,
-                      child: Center(
-                        child: SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
+            child: AnimatedOpacity(
+              opacity: _tabController.index == 0 ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: IgnorePointer(
+                ignoring: _tabController.index != 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _isSaving ? LexiColors.slate300 : LexiColors.sky400,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 40,
+                          height: 16,
+                          child: Center(
+                            child: SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Text(
+                          'Lưu',
+                          style: GoogleFonts.nunito(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
-                            strokeWidth: 2,
                           ),
                         ),
-                      ),
-                    )
-                  : Text(
-                      'Lưu',
-                      style: GoogleFonts.nunito(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
+                ),
+              ),
             ),
           ),
         ],
@@ -277,7 +315,7 @@ class _AddVocabularyScreenState extends State<AddVocabularyScreen>
             borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
-                color: LexiColors.sky200.withOpacity(0.6),
+                color: LexiColors.sky200.withValues(alpha: 0.6),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
@@ -309,7 +347,9 @@ class _AddVocabularyScreenState extends State<AddVocabularyScreen>
 // TAB 1 — NHẬP TAY
 // ════════════════════════════════════════════════════════════════════════════
 class _ManualInputTab extends StatefulWidget {
-  const _ManualInputTab({super.key});
+  final List<({String front, String back})>? importedEntries;
+
+  const _ManualInputTab({super.key, this.importedEntries});
 
   @override
   State<_ManualInputTab> createState() => _ManualInputTabState();
@@ -317,6 +357,36 @@ class _ManualInputTab extends StatefulWidget {
 
 class _ManualInputTabState extends State<_ManualInputTab> {
   final List<_WordEntry> _entries = [_WordEntry(), _WordEntry()];
+
+  @override
+  void didUpdateWidget(_ManualInputTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Khi parent truyền importedEntries mới xuống, nạp vào danh sách
+    if (widget.importedEntries != null &&
+        widget.importedEntries != oldWidget.importedEntries) {
+      _loadEntries(widget.importedEntries!);
+    }
+  }
+
+  void _loadEntries(List<({String front, String back})> imported) {
+    setState(() {
+      for (final e in _entries) {
+        e.wordController.dispose();
+        e.meaningController.dispose();
+      }
+      _entries.clear();
+
+      for (final item in imported) {
+        final entry = _WordEntry();
+        entry.wordController.text = item.front;
+        entry.meaningController.text = item.back;
+        _entries.add(entry);
+      }
+
+      // Dòng trống ở cuối để user thêm từ mới
+      _entries.add(_WordEntry());
+    });
+  }
 
   void _addEntry() {
     setState(() => _entries.add(_WordEntry()));
@@ -495,6 +565,10 @@ class _WordEntry {
 // TAB 2 — IMPORT FILE
 // ════════════════════════════════════════════════════════════════════════════
 class _ImportTab extends StatefulWidget {
+  final void Function(List<({String front, String back})> entries) onImported;
+
+  const _ImportTab({required this.onImported});
+
   @override
   State<_ImportTab> createState() => _ImportTabState();
 }
@@ -503,14 +577,112 @@ class _ImportTabState extends State<_ImportTab> {
   final _quizletController = TextEditingController();
   final _pasteController = TextEditingController();
 
-  // TODO: gọi service pick file (.csv/.txt/.xlsx)
-  void _onPickFile() {}
+  final _importService = ImportService();
 
-  // TODO: gọi service import từ Quizlet link
-  void _onImportQuizlet() {}
+  bool _isLoading = false;
+  String? _errorMessage;
 
-  // TODO: gọi service parse paste text
-  void _onPasteImport() {}
+  @override
+  void dispose() {
+    _quizletController.dispose();
+    _pasteController.dispose();
+    super.dispose();
+  }
+
+  // ── Gọi service pick file ───────────────────────────────────────────────────
+  Future<void> _onPickFile() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final importResult = await _importService.pickAndParseFile();
+
+      if (!mounted) return;
+
+      if (importResult == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      if (importResult.entries.isEmpty) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              'Không tìm thấy từ nào trong file "${importResult.fileName}".\nKiểm tra định dạng: mỗi dòng gồm "từ - nghĩa".';
+        });
+        return;
+      }
+
+      setState(() => _isLoading = false);
+
+      // Chuyển entries sang tab Nhập tay để user kiểm tra
+      widget.onImported(importResult.entries);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Lỗi đọc file: $e';
+        });
+      }
+    }
+  }
+
+  // ── Quizlet — chưa có service, thông báo rõ ────────────────────────────────
+  void _onImportQuizlet() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Chức năng nhập từ Quizlet đang được phát triển',
+          style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: LexiColors.lav600,
+      ),
+    );
+  }
+
+  // ── Gọi service parse paste text ───────────────────────────────────────────
+  Future<void> _onPasteImport() async {
+    final text = _pasteController.text.trim();
+
+    if (text.isEmpty) {
+      setState(() => _errorMessage = 'Vui lòng dán nội dung vào ô văn bản');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final entries = _importService.parsePasteText(text);
+
+      if (!mounted) return;
+
+      if (entries.isEmpty) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              'Không phân tích được từ nào.\nKiểm tra định dạng: mỗi dòng gồm "từ - nghĩa".';
+        });
+        return;
+      }
+
+      setState(() => _isLoading = false);
+
+      // Chuyển entries sang tab Nhập tay để user kiểm tra
+      widget.onImported(entries);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Lỗi phân tích: $e';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -519,6 +691,58 @@ class _ImportTabState extends State<_ImportTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Loading indicator
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: LinearProgressIndicator(),
+            ),
+
+          // Error banner
+          if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: LexiColors.red50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: LexiColors.red100),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 16,
+                      color: LexiColors.red600,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: GoogleFonts.nunito(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: LexiColors.red600,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => setState(() => _errorMessage = null),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 14,
+                        color: LexiColors.red400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           _buildImportOption(
             icon: Icons.upload_file_rounded,
             iconBg: LexiColors.sky100,

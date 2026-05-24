@@ -98,7 +98,7 @@ class _StudyScreenState extends State<StudyScreen>
       repetitionCount: card.repetitionCount,
     );
 
-    await _deckService.updateFlashcard(
+    await _deckService.reviewFlashcard(
       widget.deckId,
       card.flashcardId,
       easeFactor: result.easeFactor,

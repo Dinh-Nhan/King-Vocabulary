@@ -207,43 +207,89 @@ class DeckService {
         );
   }
 
-  /// Cập nhật nội dung 1 từ
+  // /// Cập nhật nội dung 1 từ
+  // Future<void> updateFlashcard(
+  //   String deckId,
+  //   String flashcardId, {
+  //   String? frontContent,
+  //   String? backContent,
+  //   double? easeFactor, // 👈 thêm
+  //   int? intervalDays, // 👈 thêm
+  //   int? repetitionCount, // 👈 thêm
+  //   DateTime? nextReviewAt, // 👈 thêm
+  // }) async {
+  //   final doc = await _wordsRef(deckId).doc(flashcardId).get();
+  //   final currentReviewCount = doc.data()?['reviewCount'] ?? 0;
+
+  //   final batch = _db.batch();
+
+  //   if (currentReviewCount == 0) {
+  //     batch.update(_decksRef.doc(deckId), {
+  //       'learnedCount': FieldValue.increment(1), // 👈
+  //     });
+  //   }
+  //   batch.update(_decksRef.doc(deckId), {
+  //     if (currentReviewCount == 0) 'learnedCount': FieldValue.increment(1),
+  //   });
+
+  //   await _wordsRef(deckId).doc(flashcardId).update({
+  //     if (frontContent != null) 'frontContent': frontContent.trim(),
+  //     if (backContent != null) 'backContent': backContent.trim(),
+  //     'easeFactor': ?easeFactor,
+  //     'reviewIntervalDays': ?intervalDays,
+  //     'repetitionCount': ?repetitionCount,
+  //     if (nextReviewAt != null)
+  //       'nextReviewAt': Timestamp.fromDate(nextReviewAt),
+  //     'reviewCount': FieldValue.increment(1), // 👈 tăng mỗi lần ôn
+  //     'lastReviewedAt': FieldValue.serverTimestamp(),
+  //     'updatedAt': FieldValue.serverTimestamp(),
+  //   });
+  // }
+
+  // Dùng khi user chỉnh sửa nội dung từ
   Future<void> updateFlashcard(
     String deckId,
     String flashcardId, {
     String? frontContent,
     String? backContent,
-    double? easeFactor, // 👈 thêm
-    int? intervalDays, // 👈 thêm
-    int? repetitionCount, // 👈 thêm
-    DateTime? nextReviewAt, // 👈 thêm
+  }) async {
+    await _wordsRef(deckId).doc(flashcardId).update({
+      if (frontContent != null) 'frontContent': frontContent.trim(),
+      if (backContent != null) 'backContent': backContent.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> reviewFlashcard(
+    String deckId,
+    String flashcardId, {
+    required double easeFactor,
+    required int intervalDays,
+    required int repetitionCount,
+    required DateTime nextReviewAt,
   }) async {
     final doc = await _wordsRef(deckId).doc(flashcardId).get();
     final currentReviewCount = doc.data()?['reviewCount'] ?? 0;
 
     final batch = _db.batch();
 
-    if (currentReviewCount == 0) {
-      batch.update(_decksRef.doc(deckId), {
-        'learnedCount': FieldValue.increment(1), // 👈
-      });
-    }
-    batch.update(_decksRef.doc(deckId), {
-      if (currentReviewCount == 0) 'learnedCount': FieldValue.increment(1),
-    });
-
-    await _wordsRef(deckId).doc(flashcardId).update({
-      if (frontContent != null) 'frontContent': frontContent.trim(),
-      if (backContent != null) 'backContent': backContent.trim(),
-      'easeFactor': ?easeFactor,
-      'reviewIntervalDays': ?intervalDays,
-      'repetitionCount': ?repetitionCount,
-      if (nextReviewAt != null)
-        'nextReviewAt': Timestamp.fromDate(nextReviewAt),
-      'reviewCount': FieldValue.increment(1), // 👈 tăng mỗi lần ôn
+    batch.update(_wordsRef(deckId).doc(flashcardId), {
+      'easeFactor': easeFactor,
+      'reviewIntervalDays': intervalDays,
+      'repetitionCount': repetitionCount,
+      'nextReviewAt': Timestamp.fromDate(nextReviewAt),
+      'reviewCount': FieldValue.increment(1),
       'lastReviewedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    if (currentReviewCount == 0) {
+      batch.update(_decksRef.doc(deckId), {
+        'learnedCount': FieldValue.increment(1),
+      });
+    }
+
+    await batch.commit();
   }
 
   /// Xóa 1 từ
