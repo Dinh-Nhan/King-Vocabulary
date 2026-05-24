@@ -18,6 +18,7 @@ abstract final class LexiColors {
   static const mint200 = Color(0xFFBBF7D0);
   static const mint400 = Color(0xFF4ADE80);
   static const mint600 = Color(0xFF16A34A);
+  static const mint700 = Color(0xFF15803D);
   static const mint800 = Color(0xFF166534);
 
   static const pink50 = Color(0xFFFFF0F6);
@@ -35,14 +36,17 @@ abstract final class LexiColors {
   static const amber50 = Color(0xFFFFFBEB);
   static const amber100 = Color(0xFFFEF3C7);
   static const amber200 = Color(0xFFFDE68A);
+  static const amber400 = Color(0xFFFBBF24);
   static const amber600 = Color(0xFFD97706);
   static const amber800 = Color(0xFF92400E);
+  static const amber900 = Color(0xFF78350F);
 
   static const red50 = Color(0xFFFEF2F2);
   static const red100 = Color(0xFFFEE2E2);
   static const red200 = Color(0xFFFECACA);
   static const red400 = Color(0xFFEF5350);
   static const red600 = Color(0xFFDC2626);
+  static const red700 = Color(0xFFB91C1C);
   static const red800 = Color(0xFF991B1B);
 
   static const slate50 = Color(0xFFF8FAFC);

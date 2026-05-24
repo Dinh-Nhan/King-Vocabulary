@@ -513,10 +513,9 @@ class _HomeScreenState extends State<HomeScreen>
               .map(
                 (deck) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildDismissibleDeckCard(
-                    context,
-                    deck,
-                    deckTitle: deck.title,
+                  child: GestureDetector(
+                    onTap: () => _onDeckTap(context, deck.deckId, deck.title),
+                    child: _buildDeckCard(context, deck),
                   ),
                 ),
               )
@@ -534,7 +533,16 @@ class _HomeScreenState extends State<HomeScreen>
     return Dismissible(
       key: Key(deck.deckId),
       direction: DismissDirection.endToStart,
+      dismissThresholds: const {
+        DismissDirection.endToStart: 0.3, // Giảm threshold để dễ swipe hơn
+      },
+      movementDuration: const Duration(milliseconds: 200),
+      onUpdate: (details) {
+        // Debug: xem có nhận được swipe gesture không
+        debugPrint('📱 Swipe progress: ${details.progress}');
+      },
       confirmDismiss: (direction) async {
+        debugPrint('✅ Swipe completed! Showing dialog...');
         // Hiển thị dialog xác nhận
         return await showDialog<bool>(
           context: context,
@@ -586,6 +594,7 @@ class _HomeScreenState extends State<HomeScreen>
         );
       },
       onDismissed: (direction) async {
+        debugPrint('🗑️ Deleting deck: $deckTitle');
         // Xóa bộ từ
         try {
           await _deckService.deleteDeck(deck.deckId);
@@ -603,6 +612,7 @@ class _HomeScreenState extends State<HomeScreen>
             );
           }
         } catch (e) {
+          debugPrint('❌ Error deleting: $e');
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -629,10 +639,97 @@ class _HomeScreenState extends State<HomeScreen>
           size: 28,
         ),
       ),
-      child: InkWell(
-        onTap: () => _onDeckTap(context, deck.deckId, deck.title),
-        borderRadius: BorderRadius.circular(16),
-        child: _buildDeckCard(context, deck),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onDeckTap(context, deck.deckId, deck.title),
+          onLongPress: () {
+            // Long press để xóa (backup method)
+            debugPrint('🔴 Long press detected');
+            showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Text(
+                  'Xóa bộ từ?',
+                  style: GoogleFonts.nunito(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: LexiColors.slate800,
+                  ),
+                ),
+                content: Text(
+                  'Bạn có chắc muốn xóa "$deckTitle"?\n\nTất cả ${deck.totalFlashcardCount} từ bên trong sẽ bị xóa vĩnh viễn.',
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: LexiColors.slate600,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Hủy',
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: LexiColors.slate500,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      try {
+                        await _deckService.deleteDeck(deck.deckId);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '✅ Đã xóa "$deckTitle"',
+                                style: GoogleFonts.nunito(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              backgroundColor: LexiColors.mint600,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '❌ Lỗi: $e',
+                                style: GoogleFonts.nunito(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              backgroundColor: LexiColors.red600,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: Text(
+                      'Xóa',
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: LexiColors.red600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: _buildDeckCard(context, deck),
+        ),
       ),
     );
   }
@@ -647,71 +744,159 @@ class _HomeScreenState extends State<HomeScreen>
     final colors = [LexiColors.sky400, LexiColors.mint400, LexiColors.lav400];
     final color = colors[deck.deckId.hashCode % colors.length];
 
-    return GestureDetector(
-      onTap: () => _onDeckTap(context, deck.deckId, deck.title),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: LexiColors.sky100),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.menu_book_rounded, color: color, size: 22),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: LexiColors.sky100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    deck.title,
+            child: Icon(Icons.menu_book_rounded, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  deck.title,
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: LexiColors.slate800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${deck.learnedCount}/${deck.totalFlashcardCount} từ',
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: LexiColors.slate400,
+                  ),
+                ),
+                if (deck.totalFlashcardCount > 0) ...[
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 5,
+                      backgroundColor: LexiColors.sky100,
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Thêm nút xóa trực tiếp
+          IconButton(
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              size: 20,
+              color: LexiColors.red400,
+            ),
+            onPressed: () async {
+              // Hiển thị dialog xác nhận
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: Text(
+                    'Xóa bộ từ?',
                     style: GoogleFonts.nunito(
-                      fontSize: 14,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: LexiColors.slate800,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${deck.learnedCount}/${deck.totalFlashcardCount} từ',
+                  content: Text(
+                    'Bạn có chắc muốn xóa "${deck.title}"?\n\nTất cả ${deck.totalFlashcardCount} từ bên trong sẽ bị xóa vĩnh viễn.',
                     style: GoogleFonts.nunito(
-                      fontSize: 11,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: LexiColors.slate400,
+                      color: LexiColors.slate600,
                     ),
                   ),
-                  if (deck.totalFlashcardCount > 0) ...[
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(99),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 5,
-                        backgroundColor: LexiColors.sky100,
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: Text(
+                        'Hủy',
+                        style: GoogleFonts.nunito(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: LexiColors.slate500,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text(
+                        'Xóa',
+                        style: GoogleFonts.nunito(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: LexiColors.red600,
+                        ),
                       ),
                     ),
                   ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: LexiColors.slate300,
-            ),
-          ],
-        ),
+                ),
+              );
+
+              if (confirm == true) {
+                try {
+                  debugPrint('🗑️ Deleting deck: ${deck.deckId}');
+                  await _deckService.deleteDeck(deck.deckId);
+                  debugPrint('✅ Deck deleted successfully');
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '✅ Đã xóa "${deck.title}"',
+                          style: GoogleFonts.nunito(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        backgroundColor: LexiColors.mint600,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('❌ Error deleting deck: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '❌ Lỗi: $e',
+                          style: GoogleFonts.nunito(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        backgroundColor: LexiColors.red600,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+          ),
+        ],
       ),
     );
   }
